@@ -23,6 +23,7 @@ class PrayerProvider extends ChangeNotifier {
   bool isDoaLoading = true;
   bool isSearchingLocation = false;
   String? locationSearchError;
+  String? prayerError;
 
   PrayerProvider() {
     // Inisialisasi data Doa pada konstruktor.
@@ -48,20 +49,26 @@ class PrayerProvider extends ChangeNotifier {
   /// Ambil data jadwal shalat dari API.
   Future<void> fetchPrayerData() async {
     isLoading = true;
+    prayerError = null;
     notifyListeners();
 
-    data = await apiService.getPrayerData(
-      latitude: selectedLocation.latitude,
-      longitude: selectedLocation.longitude,
-    );
+    try {
+      data = await apiService.getPrayerData(
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude,
+      );
 
-    if (!isDoaLoading) {
-      allDoa = await databaseHelper.getAllDoa();
-      dailyDoa = await databaseHelper.getRandomDoa();
+      if (!isDoaLoading) {
+        allDoa = await databaseHelper.getAllDoa();
+        dailyDoa = await databaseHelper.getRandomDoa();
+      }
+    } catch (_) {
+      prayerError =
+          'Jadwal shalat belum bisa dimuat. Periksa koneksi lalu coba lagi.';
+    } finally {
+      isLoading = false;
+      notifyListeners();
     }
-
-    isLoading = false;
-    notifyListeners();
   }
 
   /// Cari Doa dalam memori `allDoa` yang sudah dimuat.
@@ -93,15 +100,21 @@ class PrayerProvider extends ChangeNotifier {
     selectedLocation = location;
     isLoading = true;
     locationSearchError = null;
+    prayerError = null;
     notifyListeners();
 
-    data = await apiService.getPrayerData(
-      latitude: location.latitude,
-      longitude: location.longitude,
-    );
-
-    isLoading = false;
-    notifyListeners();
+    try {
+      data = await apiService.getPrayerData(
+        latitude: location.latitude,
+        longitude: location.longitude,
+      );
+    } catch (_) {
+      prayerError =
+          'Jadwal shalat belum bisa dimuat. Periksa koneksi lalu coba lagi.';
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> searchLocation(String query) async {
@@ -116,6 +129,7 @@ class PrayerProvider extends ChangeNotifier {
     isSearchingLocation = true;
     isLoading = true;
     locationSearchError = null;
+    prayerError = null;
     notifyListeners();
 
     try {
@@ -171,6 +185,7 @@ class PrayerLocation {
 
     return '$name, $region';
   }
+
   String get coordinateText {
     final latDirection = latitude >= 0 ? 'LU' : 'LS';
     final lonDirection = longitude >= 0 ? 'BT' : 'BB';

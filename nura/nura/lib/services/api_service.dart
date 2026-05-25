@@ -6,21 +6,33 @@ import 'package:http/http.dart' as http;
 import '../models/doa_model.dart';
 
 class ApiService {
+  static const Duration _requestTimeout = Duration(seconds: 12);
+
   Future<Map<String, dynamic>> getPrayerData({
     double latitude = -6.4698,
     double longitude = 106.6359,
   }) async {
-    final response = await http.get(
-      Uri.https('api.aladhan.com', '/v1/timings', {
-        'latitude': latitude.toString(),
-        'longitude': longitude.toString(),
-        'method': '8',
-      }),
-    );
+    final response = await http
+        .get(
+          Uri.https('api.aladhan.com', '/v1/timings', {
+            'latitude': latitude.toString(),
+            'longitude': longitude.toString(),
+            'method': '8',
+          }),
+        )
+        .timeout(_requestTimeout);
+
+    if (response.statusCode != 200) {
+      throw Exception('Jadwal shalat belum bisa dimuat saat ini.');
+    }
 
     final data = jsonDecode(response.body);
+    if (data is! Map<String, dynamic> ||
+        data['data'] is! Map<String, dynamic>) {
+      throw const FormatException('Format jadwal shalat tidak sesuai.');
+    }
 
-    return data['data'];
+    return Map<String, dynamic>.from(data['data']);
   }
 
   Future<GeocodedLocation> searchLocation(String query) async {
@@ -30,15 +42,17 @@ class ApiService {
       throw const FormatException('Nama kota belum diisi.');
     }
 
-    final response = await http.get(
-      Uri.https('nominatim.openstreetmap.org', '/search', {
-        'q': keyword,
-        'format': 'jsonv2',
-        'addressdetails': '1',
-        'limit': '1',
-      }),
-      headers: const {'User-Agent': 'NuraPrayerTimeApp/1.0'},
-    );
+    final response = await http
+        .get(
+          Uri.https('nominatim.openstreetmap.org', '/search', {
+            'q': keyword,
+            'format': 'jsonv2',
+            'addressdetails': '1',
+            'limit': '1',
+          }),
+          headers: const {'User-Agent': 'NuraPrayerTimeApp/1.0'},
+        )
+        .timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
       throw Exception('Lokasi belum bisa dicari saat ini.');
@@ -94,9 +108,9 @@ class ApiService {
 
       for (var attempt = 0; attempt < 3; attempt++) {
         final id = random.nextInt(228) + 1;
-        final response = await http.get(
-          Uri.parse('https://equran.id/api/doa/$id'),
-        );
+        final response = await http
+            .get(Uri.parse('https://equran.id/api/doa/$id'))
+            .timeout(_requestTimeout);
 
         if (response.statusCode != 200) {
           continue;

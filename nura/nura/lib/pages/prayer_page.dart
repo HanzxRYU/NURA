@@ -42,8 +42,9 @@ class _PrayerPageState extends State<PrayerPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final pageBackground =
-        isDark ? theme.scaffoldBackgroundColor : const Color(0xFFB8D8D0);
+    final pageBackground = isDark
+        ? theme.scaffoldBackgroundColor
+        : const Color(0xFFB8D8D0);
     final titleColor = theme.colorScheme.onSurface;
 
     return Scaffold(
@@ -52,8 +53,18 @@ class _PrayerPageState extends State<PrayerPage> {
         child: Consumer<PrayerProvider>(
           builder: (context, provider, child) {
             if (provider.data == null) {
-              return const Center(
-                child: CircularProgressIndicator(color: Color(0xFF08745F)),
+              if (provider.isLoading) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF08745F)),
+                );
+              }
+
+              return _PrayerLoadErrorView(
+                message:
+                    provider.prayerError ?? 'Jadwal shalat belum bisa dimuat.',
+                onRetry: () {
+                  context.read<PrayerProvider>().fetchPrayerData();
+                },
               );
             }
 
@@ -198,6 +209,53 @@ class _PrayerPageState extends State<PrayerPage> {
     }
 
     return '$minutes Menit';
+  }
+}
+
+class _PrayerLoadErrorView extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _PrayerLoadErrorView({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.wifi_off_rounded,
+              color: Color(0xFF08745F),
+              size: 42,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF2F4F48),
+                fontSize: 14,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Coba Lagi'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF08745F),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

@@ -15,11 +15,7 @@ class HomePage extends StatefulWidget {
   final VoidCallback? onOpenPrayer;
   final VoidCallback? onOpenDoa;
 
-  const HomePage({
-    super.key,
-    this.onOpenPrayer,
-    this.onOpenDoa,
-  });
+  const HomePage({super.key, this.onOpenPrayer, this.onOpenDoa});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -30,7 +26,11 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
       context.read<PrayerProvider>().fetchPrayerData();
     });
   }
@@ -39,22 +39,32 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final pageBackground =
-        isDark ? theme.scaffoldBackgroundColor : const Color(0xFFB8D8D0);
+    final pageBackground = isDark
+        ? theme.scaffoldBackgroundColor
+        : const Color(0xFFB8D8D0);
     final titleColor = theme.colorScheme.onSurface;
-    final mutedColor =
-        isDark ? const Color(0xFFA8C6BE) : const Color(0xFF5D7770);
+    final mutedColor = isDark
+        ? const Color(0xFFA8C6BE)
+        : const Color(0xFF5D7770);
 
     return Scaffold(
       backgroundColor: pageBackground,
       body: SafeArea(
         child: Consumer<PrayerProvider>(
           builder: (context, provider, child) {
-            if (provider.isLoading || provider.data == null) {
+            if (provider.isLoading) {
               return const Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF08745F),
-                ),
+                child: CircularProgressIndicator(color: Color(0xFF08745F)),
+              );
+            }
+
+            if (provider.data == null) {
+              return _LoadErrorView(
+                message:
+                    provider.prayerError ?? 'Jadwal shalat belum bisa dimuat.',
+                onRetry: () {
+                  context.read<PrayerProvider>().fetchPrayerData();
+                },
               );
             }
 
@@ -62,24 +72,18 @@ class _HomePageState extends State<HomePage> {
 
             final dateData = provider.data!['date'];
             final hijri = Map<String, dynamic>.from(dateData['hijri']);
-            final gregorian = Map<String, dynamic>.from(
-              dateData['gregorian'],
-            );
+            final gregorian = Map<String, dynamic>.from(dateData['gregorian']);
             final timings = Map<String, dynamic>.from(
               provider.data!['timings'],
             );
             final monthData = Map<String, dynamic>.from(hijri['month']);
-            final hijriMonthNumber = int.tryParse(
-                  monthData['number']?.toString() ?? '',
-                ) ??
-                1;
+            final hijriMonthNumber =
+                int.tryParse(monthData['number']?.toString() ?? '') ?? 1;
             final hijriDay = int.tryParse(hijri['day']?.toString() ?? '') ?? 1;
-            final hijriYear = int.tryParse(hijri['year']?.toString() ?? '') ??
+            final hijriYear =
+                int.tryParse(hijri['year']?.toString() ?? '') ??
                 DateTime.now().year;
-            final nextHijriMonth = _nextHijriMonth(
-              hijriMonthNumber,
-              hijriYear,
-            );
+            final nextHijriMonth = _nextHijriMonth(hijriMonthNumber, hijriYear);
 
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 23, 20, 112),
@@ -230,10 +234,7 @@ class _HomePageState extends State<HomePage> {
                               ),
                             ),
                             SizedBox(width: 3),
-                            Icon(
-                              Icons.arrow_forward,
-                              size: 14,
-                            ),
+                            Icon(Icons.arrow_forward, size: 14),
                           ],
                         ),
                       ),
@@ -285,11 +286,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openCalendarPage() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const CalendarPage(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const CalendarPage()));
   }
 
   void _openPrayerPage() {
@@ -372,12 +371,56 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+class _LoadErrorView extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _LoadErrorView({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.wifi_off_rounded,
+              color: Color(0xFF08745F),
+              size: 42,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF2F4F48),
+                fontSize: 14,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Coba Lagi'),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF08745F),
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _UpcomingHijriMonth {
   final String name;
   final int year;
 
-  const _UpcomingHijriMonth({
-    required this.name,
-    required this.year,
-  });
+  const _UpcomingHijriMonth({required this.name, required this.year});
 }
